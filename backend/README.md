@@ -1,6 +1,6 @@
 # SplitSmart backend
 
-This is the Spring Boot foundation for the SplitSmart API. Part 2 includes only infrastructure and `GET /api/health`; user authentication and business endpoints are intentionally not implemented yet.
+This is the Maven-based Spring Boot backend for the SplitSmart API. Part 3 adds session-based user registration and login; group, expense, and settlement endpoints are intentionally not implemented yet.
 
 ## Prerequisites
 
@@ -39,4 +39,16 @@ Expected response:
 {"status":"ok","service":"splitsmart-backend"}
 ```
 
-Database credentials are intentionally externalized through `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`. The frontend origin is configurable with `FRONTEND_ORIGIN` for the later integration work.
+Database credentials are intentionally externalized through `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`. Configuration is stored in `src/main/resources/application.properties`. The frontend origin is configurable with `FRONTEND_ORIGIN` for the later integration work.
+
+## Authentication endpoints
+
+- `POST /api/auth/register` creates a user with a BCrypt password hash.
+- `POST /api/auth/login` starts an authenticated HTTP session.
+- `POST /api/auth/logout` invalidates the session.
+- `GET /api/auth/me` returns the authenticated user.
+- `GET /api/auth/csrf` initializes the CSRF cookie/token for state-changing requests.
+
+Send JSON request bodies with `fullName`, `email`, and `password` for registration, or `email` and `password` for login. The frontend must send cookies (`credentials: include`) and the `X-XSRF-TOKEN` header for POST, PUT, PATCH, and DELETE requests.
+
+The current security configuration allows only the configured local frontend origin, stores no plaintext passwords, and uses a session cookie plus CSRF protection. This is intended for the local same-origin-style student demo; production deployment would require HTTPS and additional session hardening.
