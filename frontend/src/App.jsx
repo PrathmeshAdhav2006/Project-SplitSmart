@@ -9,13 +9,20 @@ function Avatar({ initials, color = 'violet', size = '' }) {
   return <span className={`avatar avatar-${color} ${size}`}>{initials}</span>
 }
 
-function Layout({ children, user, onLogout }) {
+function Layout({ children, user, onLogout, groupId }) {
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const handleLogout = async () => {
+    try {
+      await onLogout()
+    } catch (error) {
+      window.alert(error.message)
+    }
+  }
   const links = [
     { to: '/', label: 'Overview', icon: '⌂' },
-    { to: '/groups/g1', label: 'My groups', icon: '◈' },
+    { to: `/groups/${groupId || 'g1'}`, label: 'My groups', icon: '◈' },
     { to: '/expenses', label: 'Expenses', icon: '▤' },
     { to: '/settlements', label: 'Settlements', icon: '↗' },
   ]
@@ -31,7 +38,7 @@ function Layout({ children, user, onLogout }) {
         </nav>
         <div className="sidebar-bottom">
           <div className="tip-card"><span className="tip-icon">✦</span><strong>Stay even.</strong><span>Keep every shared cost clear and fair.</span></div>
-          <button className="profile-button" onClick={onLogout}><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>Log out</small></span><span className="more">•••</span></button>
+          <button className="profile-button" onClick={handleLogout}><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>Log out</small></span><span className="more">•••</span></button>
         </div>
       </aside>
       <main className="main-content">
@@ -48,6 +55,9 @@ function StatCard({ label, value, tone, detail }) {
 
 function Dashboard({ data }) {
   const navigate = useNavigate()
+  if (!data.groups.length) {
+    return <section className="panel empty-state"><p className="eyebrow">Your workspace</p><h1>No groups yet</h1><p className="muted">Create your first group to start sharing expenses.</p><button className="primary-button">＋ Create a group</button></section>
+  }
   return <><section className="welcome-row"><div><p className="eyebrow">Saturday, 24 October 2026</p><h1>Good morning, Prathmesh <span className="wave">✦</span></h1><p className="muted">Here is your shared money snapshot.</p></div><button className="primary-button" onClick={() => navigate('/expenses/new')}>＋ Add expense</button></section>
     <section className="stats-grid"><StatCard label="You are owed" value={money(data.groups[0].balance.owedToYou)} tone="positive" detail="Across 2 groups" /><StatCard label="You owe" value={money(data.groups[0].balance.owed)} tone="negative" detail="Across 1 group" /><StatCard label="Net position" value={`+${money(data.groups[0].balance.net)}`} tone="neutral" detail="This month" /></section>
     <div className="content-grid"><section className="panel groups-panel"><div className="panel-heading"><div><p className="eyebrow">Your groups</p><h2>Keep things together</h2></div><button className="text-button" onClick={() => navigate('/groups/g1')}>View all <span>→</span></button></div><GroupCard group={data.groups[0]} /><div className="add-group-card"><span className="add-icon">＋</span><span><strong>Start a new group</strong><small>For a trip, home, or anything shared</small></span><span className="arrow">→</span></div></section><section className="panel activity-panel"><div className="panel-heading"><div><p className="eyebrow">Latest activity</p><h2>Recent expenses</h2></div><button className="text-button" onClick={() => navigate('/expenses')}>See all <span>→</span></button></div>{data.recentExpenses.map((expense) => <ExpenseRow key={expense.id} expense={expense} />)}</section></div>
@@ -117,7 +127,19 @@ function Auth({ onLogin }) {
 export default function App() {
   const [user, setUser] = useState(null)
   const [data, setData] = useState(null)
+  const [sessionChecked, setSessionChecked] = useState(false)
+  useEffect(() => {
+    appApi.me().then((response) => {
+      const account = response.user
+      setUser({
+        ...account,
+        name: account.fullName || account.name || 'Prathmesh Adhav',
+        initials: account.initials || (account.fullName || account.name || 'PA').split(' ').map((part) => part[0]).join('').slice(0, 2),
+      })
+    }).catch(() => {}).finally(() => setSessionChecked(true))
+  }, [])
   useEffect(() => { if (user) appApi.getDashboard().then(setData) }, [user])
+  if (!sessionChecked) return <div className="loading-screen">Checking your session…</div>
   if (!user) return <Auth onLogin={async (values, registering) => {
     try {
       if (appApi.csrf) await appApi.csrf()
@@ -135,5 +157,5 @@ export default function App() {
     }
   }} />
   if (!data) return <div className="loading-screen">Loading your workspace…</div>
-  return <Layout user={user} onLogout={() => setUser(null)}><Routes><Route path="/" element={<Dashboard data={data} />} /><Route path="/groups/:groupId" element={<GroupPage group={data.groups[0]} />} /><Route path="/expenses" element={<ExpenseList group={data.groups[0]} />} /><Route path="/expenses/new" element={<ExpenseForm />} /><Route path="/settlements" element={<SettlementList group={data.groups[0]} />} /><Route path="*" element={<Dashboard data={data} />} /></Routes></Layout>
+  return <Layout user={user} groupId={data.groups[0]?.id} onLogout={async () => { await appApi.logout(); setUser(null) }}><Routes><Route path="/" element={<Dashboard data={data} />} /><Route path="/groups/:groupId" element={<GroupPage group={data.groups[0]} />} /><Route path="/expenses" element={<ExpenseList group={data.groups[0]} />} /><Route path="/expenses/new" element={<ExpenseForm />} /><Route path="/settlements" element={<SettlementList group={data.groups[0]} />} /><Route path="*" element={<Dashboard data={data} />} /></Routes></Layout>
 }
