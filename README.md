@@ -12,6 +12,6 @@ npm install
 npm run dev
 ```
 
-Open the local Vite URL shown in the terminal. The preview uses an in-memory mock adapter in [`frontend/src/mockApi.js`](./frontend/src/mockApi.js), so changes are not persisted and there is no backend yet. Use any valid-looking email and a six-character password on the login screen.
+Open the local Vite URL shown in the terminal. The preview uses an in-memory mock adapter in [`frontend/src/mockApi.js`](./frontend/src/mockApi.js) by default. To use the Spring Boot API, set `VITE_USE_BACKEND=true` and optionally `VITE_API_URL=http://localhost:8080` before starting Vite. The API mode requires the backend and MySQL to be running.
 
-The preview includes the dashboard, group overview, member list, expense history and filters, equal/custom split form, balances, settlement suggestions, and settlement history. Backend authentication, authorization, persistence, and authoritative calculations will be added in later approved parts.
+The preview includes the dashboard, group overview, member list, expense history and filters, equal/custom split form, balances, settlement suggestions, and settlement history. Mock mode is not persisted; API mode sends cookies and CSRF headers to the backend.
