@@ -17,6 +17,7 @@ public class AuthController {
   private final UserDao users; private final PasswordEncoder encoder;
   public AuthController(UserDao users,PasswordEncoder encoder){this.users=users;this.encoder=encoder;}
   @PostMapping("/register") ResponseEntity<?> register(@RequestBody Dto.Register in,HttpServletRequest req,HttpServletResponse res) throws SQLException {
+    if (in == null) throw new ApiException(HttpStatus.BAD_REQUEST,"Registration details are required");
     String email = in.email() == null ? "" : in.email().trim().toLowerCase(java.util.Locale.ROOT);
     if(in.name()==null||in.name().isBlank()||email.isBlank()||!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")||in.password()==null||in.password().length()<8)
       throw new ApiException(HttpStatus.BAD_REQUEST,"Name, valid email and password of at least 8 characters are required");
@@ -25,6 +26,7 @@ public class AuthController {
     return ResponseEntity.status(201).body(Map.of("id",u.id(),"name",u.name(),"email",u.email()));
   }
   @PostMapping("/login") Map<String,Object> login(@RequestBody Dto.Login in,HttpServletRequest req,HttpServletResponse res) throws SQLException {
+    if (in == null) throw new ApiException(HttpStatus.UNAUTHORIZED,"Invalid credentials");
     String email = in.email() == null ? "" : in.email().trim().toLowerCase(java.util.Locale.ROOT);
     User u=users.findByEmail(email).orElseThrow(()->new ApiException(HttpStatus.UNAUTHORIZED,"Invalid credentials"));
     if(in.password()==null||!encoder.matches(in.password(),u.passwordHash())) throw new ApiException(HttpStatus.UNAUTHORIZED,"Invalid credentials");
