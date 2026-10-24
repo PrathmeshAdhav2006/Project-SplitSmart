@@ -5,6 +5,7 @@ import java.util.List;
 import com.splitsmart.dto.BalanceResponse;
 import com.splitsmart.dto.SettlementRequest;
 import com.splitsmart.dto.SettlementResponse;
+import com.splitsmart.dto.SettlementSuggestionResponse;
 import com.splitsmart.model.User;
 import com.splitsmart.service.AuthService;
 import com.splitsmart.service.SettlementService;
@@ -33,6 +34,10 @@ public class SettlementController {
     @GetMapping("/settlements")
     public List<SettlementResponse> list(@PathVariable Long groupId, Authentication authentication) {
         return settlementService.list(groupId, currentUser(authentication));
+    }
+    @GetMapping("/settlement-suggestions")
+    public List<SettlementSuggestionResponse> suggestions(@PathVariable Long groupId, Authentication authentication) {
+        return settlementService.suggestions(groupId, currentUser(authentication));
     }
     @PostMapping("/settlements")
     public org.springframework.http.ResponseEntity<SettlementResponse> create(@PathVariable Long groupId,
