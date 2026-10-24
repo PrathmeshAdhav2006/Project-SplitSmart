@@ -68,3 +68,5 @@ All group-scoped endpoints require the authenticated session and verify group me
 - `GET /api/groups/{groupId}/summary/monthly`
 
 Expense and settlement writes are transactional and use `BigDecimal`/`DECIMAL(12,2)`. Part 4 validates group membership, unique share participants, payer membership, and exact submitted share totals. Part 5 will add equal-split paise allocation, authoritative balance rules, deterministic settlement suggestions, and stricter settlement void authorization.
+
+Part 5 completes those rules. `EQUAL` shares are allocated in integer paise by stable user ID; `CUSTOM` shares must already total the expense exactly. Balances are recomputed from persisted expense shares and completed settlements. `GET /api/groups/{groupId}/settlement-suggestions` returns deterministic largest-balance-first transfers. Only the group owner can void a completed settlement, and only the original payer, or the owner, can edit or delete an expense.
