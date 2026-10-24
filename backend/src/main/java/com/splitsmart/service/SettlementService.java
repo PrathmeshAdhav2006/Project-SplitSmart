@@ -5,6 +5,7 @@ import java.util.List;
 import com.splitsmart.dto.BalanceResponse;
 import com.splitsmart.dto.SettlementRequest;
 import com.splitsmart.dto.SettlementResponse;
+import com.splitsmart.dto.SettlementSuggestionResponse;
 import com.splitsmart.exception.AuthenticationException;
 import com.splitsmart.model.User;
 import com.splitsmart.repository.GroupRepository;
@@ -27,6 +28,10 @@ public class SettlementService {
     public List<BalanceResponse> balances(Long groupId, User user) {
         groupService.requireMember(groupId, user); return settlementRepository.balances(groupId);
     }
+    public List<SettlementSuggestionResponse> suggestions(Long groupId, User user) {
+        groupService.requireMember(groupId, user);
+        return settlementRepository.suggestions(groupId);
+    }
     @Transactional
     public SettlementResponse create(Long groupId, SettlementRequest request, User user) {
         groupService.requireMember(groupId, user);
@@ -39,6 +44,9 @@ public class SettlementService {
     @Transactional
     public void voidSettlement(Long groupId, Long id, User user) {
         groupService.requireMember(groupId, user);
+        if (!groupRepository.isOwner(groupId, user.getId())) {
+            throw new AuthenticationException(HttpStatus.FORBIDDEN, "Only the group owner can void a settlement");
+        }
         settlementRepository.voidSettlement(groupId, id);
     }
 }
