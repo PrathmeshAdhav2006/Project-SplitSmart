@@ -52,3 +52,19 @@ Database credentials are intentionally externalized through `DB_URL`, `DB_USERNA
 Send JSON request bodies with `fullName`, `email`, and `password` for registration, or `email` and `password` for login. The frontend must send cookies (`credentials: include`) and the `X-XSRF-TOKEN` header for POST, PUT, PATCH, and DELETE requests.
 
 The current security configuration allows only the configured local frontend origin, stores no plaintext passwords, and uses a session cookie plus CSRF protection. This is intended for the local same-origin-style student demo; production deployment would require HTTPS and additional session hardening.
+
+## Part 4 API foundation
+
+All group-scoped endpoints require the authenticated session and verify group membership:
+
+- `GET /api/groups`, `POST /api/groups`
+- `GET /api/groups/{groupId}`, `GET /api/groups/{groupId}/members`
+- `POST /api/groups/{groupId}/members` (owner only; registered email required)
+- `GET|POST /api/groups/{groupId}/expenses`
+- `GET|PUT|DELETE /api/groups/{groupId}/expenses/{expenseId}`
+- `GET /api/groups/{groupId}/balances`
+- `GET|POST /api/groups/{groupId}/settlements`
+- `DELETE /api/groups/{groupId}/settlements/{settlementId}`
+- `GET /api/groups/{groupId}/summary/monthly`
+
+Expense and settlement writes are transactional and use `BigDecimal`/`DECIMAL(12,2)`. Part 4 validates group membership, unique share participants, payer membership, and exact submitted share totals. Part 5 will add equal-split paise allocation, authoritative balance rules, deterministic settlement suggestions, and stricter settlement void authorization.
