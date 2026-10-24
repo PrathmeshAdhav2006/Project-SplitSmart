@@ -33,8 +33,20 @@ const group = {
 const delay = (value) => new Promise((resolve) => setTimeout(() => resolve(value), 220))
 
 export const mockApi = {
+  async csrf() {
+    return delay({ token: 'mock-csrf' })
+  },
   async login() {
     return delay({ user: members[0], token: 'mock-session' })
+  },
+  async register() {
+    return delay({ user: members[0], token: 'mock-session' })
+  },
+  async me() {
+    return delay({ user: members[0] })
+  },
+  async logout() {
+    return delay(null)
   },
   async getDashboard() {
     return delay({ groups: [group], recentExpenses: expenses.slice(0, 3), user: members[0] })
