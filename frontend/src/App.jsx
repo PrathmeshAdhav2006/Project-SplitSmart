@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { mockApi } from './mockApi'
+import { appApi } from './api'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(value))
 const dateLabel = (value) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`))
@@ -106,15 +106,34 @@ function ExpenseForm() {
 
 function Auth({ onLogin }) {
   const [isRegistering, setIsRegistering] = useState(false)
-  const submit = (event) => { event.preventDefault(); onLogin() }
-  return <div className="auth-page"><div className="auth-decoration"><div className="auth-orb orb-one" /><div className="auth-orb orb-two" /><div className="auth-quote">“Clarity is kindness<br />to your future self.”</div></div><div className="auth-card"><div className="brand auth-brand"><span className="brand-mark">S</span><span>split<span className="brand-accent">smart</span></span></div><div className="auth-copy"><p className="eyebrow">{isRegistering ? 'Create your account' : 'Welcome back'}</p><h1>{isRegistering ? 'Start splitting smarter.' : 'Good to see you again.'}</h1><p className="muted">{isRegistering ? 'Bring a little more clarity to every shared expense.' : 'Your shared expenses, all in one calm place.'}</p></div><form onSubmit={submit} className="auth-form">{isRegistering && <label>Full name<input required placeholder="Your name" /></label>}<label>Email address<input type="email" required placeholder="you@example.com" /></label><label>Password<input type="password" required minLength="6" placeholder="••••••••" /></label>{!isRegistering && <div className="forgot-row"><label className="check-label"><input type="checkbox" /> Remember me</label><button type="button" className="text-button">Forgot password?</button></div>}<button className="primary-button full-width" type="submit">{isRegistering ? 'Create account' : 'Log in'} <span>→</span></button></form><p className="auth-switch">{isRegistering ? 'Already have an account?' : 'New to SplitSmart?'} <button className="text-button" onClick={() => setIsRegistering(!isRegistering)}>{isRegistering ? 'Log in' : 'Create an account'}</button></p><p className="mock-note">Demo mode · data is stored locally in this preview</p></div></div>
+  const submit = (event) => {
+    event.preventDefault()
+    const values = Object.fromEntries(new FormData(event.currentTarget))
+    onLogin(values, isRegistering)
+  }
+  return <div className="auth-page"><div className="auth-decoration"><div className="auth-orb orb-one" /><div className="auth-orb orb-two" /><div className="auth-quote">“Clarity is kindness<br />to your future self.”</div></div><div className="auth-card"><div className="brand auth-brand"><span className="brand-mark">S</span><span>split<span className="brand-accent">smart</span></span></div><div className="auth-copy"><p className="eyebrow">{isRegistering ? 'Create your account' : 'Welcome back'}</p><h1>{isRegistering ? 'Start splitting smarter.' : 'Good to see you again.'}</h1><p className="muted">{isRegistering ? 'Bring a little more clarity to every shared expense.' : 'Your shared expenses, all in one calm place.'}</p></div><form onSubmit={submit} className="auth-form">{isRegistering && <label>Full name<input name="fullName" required placeholder="Your name" /></label>}<label>Email address<input name="email" type="email" required placeholder="you@example.com" /></label><label>Password<input name="password" type="password" required minLength="6" placeholder="••••••••" /></label>{!isRegistering && <div className="forgot-row"><label className="check-label"><input type="checkbox" /> Remember me</label><button type="button" className="text-button">Forgot password?</button></div>}<button className="primary-button full-width" type="submit">{isRegistering ? 'Create account' : 'Log in'} <span>→</span></button></form><p className="auth-switch">{isRegistering ? 'Already have an account?' : 'New to SplitSmart?'} <button className="text-button" onClick={() => setIsRegistering(!isRegistering)}>{isRegistering ? 'Log in' : 'Create an account'}</button></p><p className="mock-note">Demo mode · data is stored locally in this preview</p></div></div>
 }
 
 export default function App() {
   const [user, setUser] = useState(null)
   const [data, setData] = useState(null)
-  useEffect(() => { if (user) mockApi.getDashboard().then(setData) }, [user])
-  if (!user) return <Auth onLogin={() => setUser({ name: 'Prathmesh Adhav', initials: 'PA' })} />
+  useEffect(() => { if (user) appApi.getDashboard().then(setData) }, [user])
+  if (!user) return <Auth onLogin={async (values, registering) => {
+    try {
+      if (appApi.csrf) await appApi.csrf()
+      const response = registering
+        ? await appApi.register(values)
+        : await appApi.login(values)
+      const account = response.user || { fullName: 'Prathmesh Adhav', initials: 'PA' }
+      setUser({
+        ...account,
+        name: account.fullName || account.name || 'Prathmesh Adhav',
+        initials: account.initials || (account.fullName || 'PA').split(' ').map((part) => part[0]).join('').slice(0, 2),
+      })
+    } catch (error) {
+      window.alert(error.message)
+    }
+  }} />
   if (!data) return <div className="loading-screen">Loading your workspace…</div>
   return <Layout user={user} onLogout={() => setUser(null)}><Routes><Route path="/" element={<Dashboard data={data} />} /><Route path="/groups/:groupId" element={<GroupPage group={data.groups[0]} />} /><Route path="/expenses" element={<ExpenseList group={data.groups[0]} />} /><Route path="/expenses/new" element={<ExpenseForm />} /><Route path="/settlements" element={<SettlementList group={data.groups[0]} />} /><Route path="*" element={<Dashboard data={data} />} /></Routes></Layout>
 }
