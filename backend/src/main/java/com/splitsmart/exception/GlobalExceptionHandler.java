@@ -37,12 +37,20 @@ public class GlobalExceptionHandler {
         return response(HttpStatus.BAD_REQUEST, "Request validation failed", request, fieldErrors);
     }
 
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthenticationException(
+            AuthenticationException exception,
+            HttpServletRequest request
+    ) {
+        return response(exception.getStatus(), exception.getMessage(), request, new LinkedHashMap<>());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpectedException(
             Exception exception,
             HttpServletRequest request
     ) {
-        return response(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request, Map.of());
+        return response(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request, new LinkedHashMap<>());
     }
 
     private ResponseEntity<ApiError> response(
