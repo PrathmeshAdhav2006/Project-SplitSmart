@@ -1,0 +1,10 @@
+spring.datasource.url=${DB_URL:jdbc:mysql://localhost:3306/tasker_db?useSSL=false&serverTimezone=UTC}
+spring.datasource.username=${DB_USERNAME:root}
+spring.datasource.password=${DB_PASSWORD:}
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+server.port=${PORT:8080}
+app.cors.allowed-origin=${FRONTEND_ORIGIN:http://localhost:5173}
+server.servlet.session.cookie.http-only=true
+server.servlet.session.cookie.same-site=lax
+server.servlet.session.cookie.secure=${SESSION_COOKIE_SECURE:false}
+spring.jackson.serialization.write-dates-as-timestamps=false

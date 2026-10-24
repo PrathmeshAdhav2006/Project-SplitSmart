@@ -1,0 +1,23 @@
+package com.tasker.dao;
+import com.tasker.model.Task;
+import java.sql.*; import java.time.*; import java.util.*; import javax.sql.DataSource;
+import org.springframework.stereotype.Repository;
+@Repository public class TaskDao {
+ private final DataSource ds; public TaskDao(DataSource ds){this.ds=ds;}
+ private Task map(ResultSet r)throws SQLException{Timestamp c=r.getTimestamp("created_at"),u=r.getTimestamp("updated_at");java.sql.Date d=r.getDate("due_date");return new Task(r.getLong("id"),r.getLong("user_id"),r.getString("title"),r.getString("description"),r.getString("priority"),r.getString("status"),d==null?null:d.toLocalDate(),c==null?null:c.toInstant().atOffset(ZoneOffset.UTC),u==null?null:u.toInstant().atOffset(ZoneOffset.UTC));}
+ private String cols(){return "id,user_id,title,description,priority,status,due_date,created_at,updated_at";}
+ public List<Task> findAll(long uid,String search,String status,String priority,String sort,String order)throws SQLException{
+  StringBuilder q=new StringBuilder("SELECT "+cols()+" FROM tasks WHERE user_id=?");List<Object> ps=new ArrayList<>();ps.add(uid);
+  if(search!=null&&!search.isBlank()){q.append(" AND (title LIKE ? OR description LIKE ?)");ps.add("%"+search+"%");ps.add("%"+search+"%");}
+  if(status!=null){q.append(" AND status=?");ps.add(status);} if(priority!=null){q.append(" AND priority=?");ps.add(priority);}
+  String col="created_at".equals(sort)?"created_at":"due_date";q.append(" ORDER BY ").append(col).append(" ").append("asc".equalsIgnoreCase(order)?"ASC":"DESC");
+  List<Task> out=new ArrayList<>();try(Connection c=ds.getConnection();PreparedStatement p=c.prepareStatement(q.toString())){for(int i=0;i<ps.size();i++)p.setObject(i+1,ps.get(i));try(ResultSet r=p.executeQuery()){while(r.next())out.add(map(r));}}return out;
+ }
+ public Optional<Task> find(long id,long uid)throws SQLException{return queryOne("SELECT "+cols()+" FROM tasks WHERE id=? AND user_id=?",id,uid);}
+ private Optional<Task> queryOne(String sql,Object... ps)throws SQLException{try(Connection c=ds.getConnection();PreparedStatement p=c.prepareStatement(sql)){for(int i=0;i<ps.length;i++)p.setObject(i+1,ps[i]);try(ResultSet r=p.executeQuery()){return r.next()?Optional.of(map(r)):Optional.empty();}}}
+ public Task insert(long uid,String title,String desc,String priority,String status,LocalDate due)throws SQLException{String q="INSERT INTO tasks(user_id,title,description,priority,status,due_date) VALUES(?,?,?,?,?,?)";try(Connection c=ds.getConnection();PreparedStatement p=c.prepareStatement(q,Statement.RETURN_GENERATED_KEYS)){p.setLong(1,uid);p.setString(2,title);p.setString(3,desc);p.setString(4,priority);p.setString(5,status);if(due==null)p.setNull(6,Types.DATE);else p.setDate(6,java.sql.Date.valueOf(due));p.executeUpdate();try(ResultSet k=p.getGeneratedKeys()){k.next();return find(k.getLong(1),uid).orElseThrow();}}}
+ public boolean update(long id,long uid,String title,String desc,String priority,String status,LocalDate due)throws SQLException{String q="UPDATE tasks SET title=?,description=?,priority=?,status=?,due_date=? WHERE id=? AND user_id=?";try(Connection c=ds.getConnection();PreparedStatement p=c.prepareStatement(q)){p.setString(1,title);p.setString(2,desc);p.setString(3,priority);p.setString(4,status);if(due==null)p.setNull(5,Types.DATE);else p.setDate(5,java.sql.Date.valueOf(due));p.setLong(6,id);p.setLong(7,uid);return p.executeUpdate()==1;}}
+ public boolean updateStatus(long id,long uid,String status)throws SQLException{try(Connection c=ds.getConnection();PreparedStatement p=c.prepareStatement("UPDATE tasks SET status=? WHERE id=? AND user_id=?")){p.setString(1,status);p.setLong(2,id);p.setLong(3,uid);return p.executeUpdate()==1;}}
+ public boolean delete(long id,long uid)throws SQLException{try(Connection c=ds.getConnection();PreparedStatement p=c.prepareStatement("DELETE FROM tasks WHERE id=? AND user_id=?")){p.setLong(1,id);p.setLong(2,uid);return p.executeUpdate()==1;}}
+ public Map<String,Long> stats(long uid)throws SQLException{Map<String,Long> m=new LinkedHashMap<>();String q="SELECT COUNT(*) total,SUM(status='PENDING') pending,SUM(status='IN_PROGRESS') progress,SUM(status='COMPLETED') completed,SUM(status<>'COMPLETED' AND due_date<CURDATE()) overdue FROM tasks WHERE user_id=?";try(Connection c=ds.getConnection();PreparedStatement p=c.prepareStatement(q)){p.setLong(1,uid);try(ResultSet r=p.executeQuery()){r.next();m.put("totalTasks",r.getLong("total"));m.put("pendingTasks",r.getLong("pending"));m.put("inProgressTasks",r.getLong("progress"));m.put("completedTasks",r.getLong("completed"));m.put("overdueTasks",r.getLong("overdue"));}}return m;}
+}
