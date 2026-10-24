@@ -1,5 +1,20 @@
 const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
+const asMoney = (value) => Number(value || 0).toFixed(2)
+const initials = (name) => (name || '?').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+const colors = ['violet', 'blue', 'amber', 'green']
+
+function normalizeExpense(expense) {
+  return {
+    ...expense,
+    title: expense.description,
+    date: expense.expenseDate,
+    amount: asMoney(expense.amount),
+    payer: expense.payerName || `Member ${expense.payerId}`,
+    participants: expense.participants || 0,
+  }
+}
+
 function readXsrfToken() {
   const cookie = document.cookie.split('; ').find((item) => item.startsWith('XSRF-TOKEN='))
   return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : null
@@ -36,31 +51,54 @@ export const apiClient = {
     const groups = await request('/api/groups')
     const firstGroup = groups[0]
     if (!firstGroup) return { groups: [], recentExpenses: [], user: null }
-    const [expenses, balances] = await Promise.all([
+    const [expenses, balances, members, suggestions, settlements, currentUser] = await Promise.all([
       request(`/api/groups/${firstGroup.id}/expenses`),
       request(`/api/groups/${firstGroup.id}/balances`),
+      request(`/api/groups/${firstGroup.id}/members`),
+      request(`/api/groups/${firstGroup.id}/settlement-suggestions`),
+      request(`/api/groups/${firstGroup.id}/settlements`),
+      request('/api/auth/me'),
     ])
-    const currentUser = await request('/api/auth/me')
     const balance = balances.find((item) => item.userId === currentUser.user.id)
+    const normalizedExpenses = expenses.map(normalizeExpense)
     return {
       groups: groups.map((group) => ({
         ...group,
-        members: [],
-        expenses: expenses,
+        members: members.map((member, index) => ({
+          ...member,
+          id: `u${member.userId}`,
+          name: member.fullName,
+          initials: initials(member.fullName),
+          color: colors[index % colors.length],
+        })),
+        expenses: normalizedExpenses,
         balance: {
-          owed: balance && balance.netAmount < 0 ? String(Math.abs(balance.netAmount)) : '0.00',
-          owedToYou: balance && balance.netAmount > 0 ? String(balance.netAmount) : '0.00',
-          net: balance ? String(balance.netAmount) : '0.00',
+          owed: balance && Number(balance.netAmount) < 0 ? asMoney(Math.abs(Number(balance.netAmount))) : '0.00',
+          owedToYou: balance && Number(balance.netAmount) > 0 ? asMoney(balance.netAmount) : '0.00',
+          net: balance ? asMoney(balance.netAmount) : '0.00',
         },
-        suggestions: [],
-        settlements: [],
+        suggestions: suggestions.map((item) => ({
+          ...item,
+          from: item.payerName,
+          to: item.receiverName,
+          amount: asMoney(item.amount),
+          fromInitials: initials(item.payerName),
+          toInitials: initials(item.receiverName),
+        })),
+        settlements: settlements.map((item) => ({
+          ...item,
+          from: members.find((member) => member.userId === item.payerId)?.fullName || `Member ${item.payerId}`,
+          to: members.find((member) => member.userId === item.receiverId)?.fullName || `Member ${item.receiverId}`,
+          amount: asMoney(item.amount),
+          date: item.settlementDate,
+        })),
       })),
-      recentExpenses: expenses.slice(0, 3),
+      recentExpenses: normalizedExpenses.slice(0, 3),
       user: currentUser.user,
     }
   },
   group: (id) => request(`/api/groups/${id}`),
-  expenses: (groupId, category) => request(`/api/groups/${groupId}/expenses${category ? `?category=${encodeURIComponent(category)}` : ''}`),
+  expenses: async (groupId, category) => (await request(`/api/groups/${groupId}/expenses${category ? `?category=${encodeURIComponent(category)}` : ''}`)).map(normalizeExpense),
   createExpense: (groupId, body) => request(`/api/groups/${groupId}/expenses`, { method: 'POST', body: JSON.stringify(body) }),
   balances: (groupId) => request(`/api/groups/${groupId}/balances`),
   settlementSuggestions: (groupId) => request(`/api/groups/${groupId}/settlement-suggestions`),
