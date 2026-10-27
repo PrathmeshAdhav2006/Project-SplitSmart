@@ -1,0 +1,527 @@
+================================================================================
+                           TASKFLOW PROJECT SPECIFICATION
+================================================================================
+
+TABLE OF CONTENTS:
+--------------------------------------------------------------------------------
+1. PROJECT OVERVIEW
+2. ARCHITECTURE & SYSTEM DESIGN
+3. TECHNOLOGY STACK & PACKAGES
+4. COMPLETE DIRECTORY STRUCTURE
+5. DATABASE SCHEMA & ENTITY RELATIONSHIPS
+6. BACKEND API ENDPOINTS & CONTRACTS
+7. FRONTEND ROUTES & USER INTERFACE
+8. SECURITY & DATA INTEGRITY
+9. ENVIRONMENT CONFIGURATION & SETUP INSTRUCTIONS
+--------------------------------------------------------------------------------
+
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+Project Name:        TaskFlow
+Project Type:        Full-Stack Task & Productivity Management Web Application
+Architecture Type:   Monorepo (Decoupled Go REST API + Next.js App Router Client)
+Target Users:        Individuals and teams seeking focused, distraction-free task
+                     tracking with priorities, deadlines, and progress statistics.
+
+Key Capabilities:
+- Secure user registration and session-based authentication.
+- Full task lifecycle management (Create, Read, Update, Delete, Status Toggle).
+- Priority categorization (Low, Medium, High).
+- Due date tracking with automatic overdue detection.
+- Real-time task search, status filtering, and multi-criteria sorting.
+- Interactive dashboard statistics and dynamic completion rate progress bar.
+- User profile info display with dynamic gradient avatar.
+
+
+================================================================================
+2. ARCHITECTURE & SYSTEM DESIGN
+================================================================================
+The project follows a decoupled, layered client-server architecture:
+
+[Browser Client] 
+      │ (HTTP / HTTPS with HttpOnly Cookie)
+      ▼
+[Next.js App Router Frontend (Port 3000)]
+      │ (REST API calls with CORS & Credentials)
+      ▼
+[Go net/http REST API Backend (Port 8080)]
+      ├── Router & Middleware (CORS, Authentication, Path dispatching)
+      ├── Handlers (Request decoding, Validation, Response encoding)
+      ├── Models (Data structures with JSON mappings)
+      └── Repository (Parameterized SQL queries, Database access)
+      │
+      ▼
+[MySQL 8.0 Database (Port 3306)]
+      └── Tables: users, sessions, tasks (InnoDB, utf8mb4)
+
+Backend Architectural Pattern:
+- Clean Layered / Repository Pattern:
+  - 'cmd/': Application entry points ('cmd/api' for the server, 'cmd/migrate' for migration runner).
+  - 'internal/config': Environment loading (auto-loads '.env') and configuration parameters.
+  - 'internal/router': HTTP routing via HttpRouter with custom CORS and Auth middleware.
+  - 'internal/handlers': Controller layer that parses requests and invokes repositories.
+  - 'internal/repository': Data access layer executing parameterized SQL queries against MySQL.
+  - 'internal/models': Domain models and DTO structs.
+
+Frontend Architectural Pattern:
+- Component-driven Next.js 16 (App Router):
+  - Client Components ('"use client"') for interactive UI state and asynchronous data fetching.
+  - Server-Side Rendering (SSR) capable pages.
+  - Custom CSS Design System with Tailwind utility layer.
+
+
+================================================================================
+3. TECHNOLOGY STACK & PACKAGES
+================================================================================
+
+A. BACKEND (Go)
+- Runtime / Language:
+  * Go 1.22+ (Running Go 1.27 on Windows amd64)
+- Core Packages & Libraries:
+  * Standard Library 'net/http': High-performance HTTP web server with timeouts.
+  * Standard Library 'database/sql': Connection pooling and SQL abstractions.
+  * 'github.com/go-sql-driver/mysql' (v1.8.1): MySQL driver for Go.
+  * 'github.com/julienschmidt/httprouter' (v1.3.0): High-performance radix-tree HTTP request multiplexer.
+  * 'golang.org/x/crypto/bcrypt' (v0.27.0): Secure password hashing with salt.
+  * 'crypto/sha256': Fast, cryptographically secure session token hashing.
+  * 'crypto/rand': Cryptographically secure random token generation.
+
+B. FRONTEND (TypeScript & React)
+- Framework:
+  * Next.js 16.4.3 (App Router with Turbopack bundler)
+  * React 19 / React-DOM 19
+- Language:
+  * TypeScript (Strict type safety)
+- Styling & UI:
+  * Tailwind CSS + PostCSS + Autoprefixer
+  * Custom Responsive Design System (Inter typography, custom gradients, CSS variables)
+- Icons & UI Feedback:
+  * 'lucide-react': Modern, lightweight SVG icons.
+  * 'sonner': Elegant toast notification system.
+- Form Management & Validation (Available):
+  * 'react-hook-form', 'zod', '@hookform/resolvers'
+
+C. DATABASE (MySQL)
+- Database Engine: MySQL 8.0+
+- Storage Engine: InnoDB (supports ACID transactions and Foreign Key constraints)
+- Default Character Set: utf8mb4
+- Default Collation: utf8mb4_unicode_ci (full Unicode and emoji support)
+
+
+================================================================================
+4. COMPLETE DIRECTORY STRUCTURE
+================================================================================
+
+project/
+│
+├── README.md                           # Project documentation and quick start
+├── PROJECT_DETAILS.txt                 # Complete project specification (this file)
+│
+├── backend/                            # Go Backend API
+│   ├── .env                            # Active environment variables (gitignored)
+│   ├── .env.example                    # Sample environment template
+│   ├── .gitignore                      # Backend gitignore
+│   ├── go.mod                          # Go module definition (taskflow/backend)
+│   ├── go.sum                          # Go dependency checksums
+│   │
+│   ├── cmd/
+│   │   ├── api/
+│   │   │   └── main.go                 # Main API server entry point
+│   │   └── migrate/
+│   │       └── main.go                 # Standalone idempotent migration runner
+│   │
+│   ├── internal/
+│   │   ├── config/
+│   │   │   └── config.go               # Config loader with automatic .env file parser
+│   │   ├── handlers/
+│   │   │   └── handlers.go             # HTTP handlers, validation, cookie management
+│   │   ├── models/
+│   │   │   └── models.go               # Go structs: User, Task, Stats with JSON tags
+│   │   ├── repository/
+│   │   │   └── repository.go           # Database operations & auto-migration hooks
+│   │   └── router/
+│   │       └── router.go               # Route registry, CORS wrapper, Auth middleware
+│   │
+│   └── migrations/                     # SQL migration scripts (run in numerical order)
+│       ├── 001_create_users.sql        # Creates 'users' table
+│       ├── 002_create_sessions.sql     # Creates 'sessions' table with foreign keys
+│       ├── 003_create_tasks.sql        # Creates 'tasks' table with priority & checks
+│       └── 004_add_priority_to_tasks.sql # Adds 'priority' column for existing setups
+│
+└── frontend/                           # Next.js App Router Client
+    ├── .env.example                    # Sample frontend environment
+    ├── .env.local                      # Local Next.js environment (gitignored)
+    ├── package.json                    # Node dependencies and scripts
+    ├── tsconfig.json                   # TypeScript compiler configuration
+    ├── next.config.mjs                 # Next.js configuration
+    ├── postcss.config.mjs              # PostCSS plugin setup
+    │
+    └── app/
+        ├── layout.tsx                  # Root HTML layout with Toaster provider
+        ├── globals.css                 # Global CSS design tokens, cards, badges, modal
+        ├── page.tsx                    # Landing / marketing homepage
+        ├── login/
+        │   └── page.tsx                # User Login form page
+        ├── register/
+        │   └── page.tsx                # User Registration form page
+        └── dashboard/
+            └── page.tsx                # Main Application Workspace Dashboard
+
+
+================================================================================
+5. DATABASE SCHEMA & ENTITY RELATIONSHIPS
+================================================================================
+
+A. ENTITY RELATIONSHIP DIAGRAM (TEXTUAL):
+--------------------------------------------------------------------------------
+       +-----------------------+
+       |         USERS         |
+       +-----------------------+
+       | PK  id                |<------------+
+       |     name              |             |
+       |     email (UNIQUE)    |             |
+       |     password_hash     |             |
+       |     created_at        |             |
+       |     updated_at        |             |
+       +-----------------------+             |
+                  | 1                        | 1
+                  |                          |
+                  | 0..N                     | 0..N
+                  v                          v
+       +-----------------------+  +-----------------------+
+       |       SESSIONS        |  |         TASKS         |
+       +-----------------------+  +-----------------------+
+       | PK  id                |  | PK  id                |
+       | FK  user_id           |  | FK  user_id           |
+       |     token_hash(UNIQUE)|  |     title             |
+       |     expires_at        |  |     description       |
+       |     created_at        |  |     status            |
+       +-----------------------+  |     priority          |
+                                  |     due_date          |
+                                  |     created_at        |
+                                  |     updated_at        |
+                                  +-----------------------+
+
+B. DETAILED TABLE DEFINITIONS:
+
+1. TABLE: `users`
+   Stores registered user accounts and credential hashes.
+   -----------------------------------------------------------------------------
+   Column Name    | Data Type            | Constraints / Attributes
+   ---------------+----------------------+--------------------------------------
+   id             | BIGINT UNSIGNED      | AUTO_INCREMENT, PRIMARY KEY
+   name           | VARCHAR(100)         | NOT NULL
+   email          | VARCHAR(255)         | NOT NULL, UNIQUE
+   password_hash  | VARCHAR(255)         | NOT NULL (bcrypt hashed string)
+   created_at     | DATETIME             | NOT NULL (UTC timestamp)
+   updated_at     | DATETIME             | NOT NULL (UTC timestamp)
+   -----------------------------------------------------------------------------
+   Storage Engine: InnoDB, Charset: utf8mb4, Collation: utf8mb4_unicode_ci
+
+2. TABLE: `sessions`
+   Stores active user login sessions. Only SHA-256 token hashes are stored.
+   -----------------------------------------------------------------------------
+   Column Name    | Data Type            | Constraints / Attributes
+   ---------------+----------------------+--------------------------------------
+   id             | BIGINT UNSIGNED      | AUTO_INCREMENT, PRIMARY KEY
+   user_id        | BIGINT UNSIGNED      | NOT NULL, FOREIGN KEY -> users(id) ON DELETE CASCADE
+   token_hash     | CHAR(64)             | NOT NULL, UNIQUE (Hex-encoded SHA-256)
+   expires_at     | DATETIME             | NOT NULL (Expiration date/time)
+   created_at     | DATETIME             | NOT NULL (UTC creation timestamp)
+   -----------------------------------------------------------------------------
+   Indexes:
+   - `idx_sessions_user`: (user_id) for fast session-to-user resolution.
+   - `idx_sessions_expiry`: (expires_at) for efficient cleanup of expired sessions.
+   Foreign Key:
+   - `fk_sessions_user`: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+
+3. TABLE: `tasks`
+   Stores user tasks, metadata, status, priority, and optional deadlines.
+   -----------------------------------------------------------------------------
+   Column Name    | Data Type            | Constraints / Attributes
+   ---------------+----------------------+--------------------------------------
+   id             | BIGINT UNSIGNED      | AUTO_INCREMENT, PRIMARY KEY
+   user_id        | BIGINT UNSIGNED      | NOT NULL, FOREIGN KEY -> users(id) ON DELETE CASCADE
+   title          | VARCHAR(200)         | NOT NULL (1 to 200 characters)
+   description    | TEXT                 | NULL (Optional long notes or links)
+   status         | VARCHAR(20)          | NOT NULL, DEFAULT 'pending'
+   priority       | VARCHAR(10)          | NOT NULL, DEFAULT 'medium'
+   due_date       | DATE                 | NULL (Optional target date: YYYY-MM-DD)
+   created_at     | DATETIME             | NOT NULL (UTC timestamp)
+   updated_at     | DATETIME             | NOT NULL (UTC timestamp)
+   -----------------------------------------------------------------------------
+   Constraints:
+   - `chk_tasks_status`: CHECK (status IN ('pending', 'completed'))
+   - `chk_tasks_priority`: CHECK (priority IN ('low', 'medium', 'high'))
+   - `fk_tasks_user`: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+   Indexes:
+   - `idx_tasks_user_status_updated`: (user_id, status, updated_at) for dashboard queries.
+   - `idx_tasks_user_priority`: (user_id, priority) for priority filters.
+   - `idx_tasks_user_created`: (user_id, created_at) for default chronological sorting.
+
+
+================================================================================
+6. BACKEND API ENDPOINTS & CONTRACTS
+================================================================================
+
+Base URL: http://localhost:8080/api/v1
+Format: JSON request/response with cookie authentication.
+
+1. Health Check
+   - Method / Path: GET /health
+   - Auth Required: No
+   - Response: 200 OK -> {"data": {"status": "ok"}}
+
+2. User Registration
+   - Method / Path: POST /auth/register
+   - Auth Required: No
+   - Request Body:
+     {
+       "name": "Jane Doe",
+       "email": "jane@example.com",
+       "password": "mypassword123"
+     }
+   - Response: 201 Created -> {"data": {"id": 1, "name": "Jane Doe", "email": "jane@example.com"}}
+   - Sets Cookie: 'taskflow_session' (HttpOnly, SameSite=Lax, 7-day expiration)
+
+3. User Login
+   - Method / Path: POST /auth/login
+   - Auth Required: No
+   - Request Body:
+     {
+       "email": "jane@example.com",
+       "password": "mypassword123"
+     }
+   - Response: 200 OK -> {"data": {"id": 1, "name": "Jane Doe", "email": "jane@example.com"}}
+   - Sets Cookie: 'taskflow_session' (HttpOnly, SameSite=Lax, 7-day expiration)
+
+4. Current Authenticated User Profile
+   - Method / Path: GET /auth/me
+   - Auth Required: Yes
+   - Response: 200 OK ->
+     {
+       "data": {
+         "id": 1,
+         "name": "Jane Doe",
+         "email": "jane@example.com",
+         "created_at": "2026-10-27T04:00:00Z"
+       }
+     }
+
+5. User Logout
+   - Method / Path: POST /auth/logout
+   - Auth Required: Yes
+   - Response: 200 OK -> {"data": {"status": "logged_out"}}
+   - Clears Cookie: MaxAge = -1
+
+6. List Tasks (With Search, Filter, Sort & Pagination)
+   - Method / Path: GET /tasks
+   - Auth Required: Yes
+   - Query Parameters (Optional):
+     * 'status': 'pending' | 'completed'
+     * 'priority': 'low' | 'medium' | 'high'
+     * 'search': Text to match against title or description
+     * 'sort': 'created_desc' | 'created_asc' | 'due_date_asc' | 'due_date_desc' | 'priority_desc' | 'title_asc'
+     * 'limit': Number of items per page (default: 50, max: 100)
+     * 'offset': Pagination offset (default: 0)
+   - Response: 200 OK ->
+     {
+       "data": {
+         "tasks": [
+           {
+             "id": 1,
+             "user_id": 1,
+             "title": "Complete Project",
+             "description": "Finalize documentation",
+             "status": "pending",
+             "priority": "high",
+             "due_date": "2026-10-30",
+             "created_at": "2026-10-27T04:00:00Z",
+             "updated_at": "2026-10-27T04:00:00Z"
+           }
+         ],
+         "pagination": {
+           "limit": 50,
+           "offset": 0,
+           "total": 1
+         }
+       }
+     }
+
+7. Task Aggregation & Statistics
+   - Method / Path: GET /tasks/stats
+   - Auth Required: Yes
+   - Response: 200 OK ->
+     {
+       "data": {
+         "total": 10,
+         "pending": 4,
+         "completed": 6,
+         "high_priority": 2,
+         "overdue": 1,
+         "completion_rate": 60.0
+       }
+     }
+
+8. Create Task
+   - Method / Path: POST /tasks
+   - Auth Required: Yes
+   - Request Body:
+     {
+       "title": "Build API",
+       "description": "Implement authentication endpoints",
+       "priority": "high",
+       "due_date": "2026-11-01"
+     }
+   - Response: 201 Created -> {"data": { ...task object... }}
+
+9. Get Single Task
+   - Method / Path: GET /tasks/:id
+   - Auth Required: Yes
+   - Response: 200 OK -> {"data": { ...task object... }}
+
+10. Update Task
+    - Method / Path: PUT /tasks/:id
+    - Auth Required: Yes
+    - Request Body: Full or updated task fields (title, description, priority, due_date, status)
+    - Response: 200 OK -> {"data": { ...updated task object... }}
+
+11. Toggle / Update Task Status
+    - Method / Path: PATCH /tasks/:id/status
+    - Auth Required: Yes
+    - Request Body: {"status": "completed"}
+    - Response: 200 OK -> {"data": {"status": "completed"}}
+
+12. Delete Task
+    - Method / Path: DELETE /tasks/:id
+    - Auth Required: Yes
+    - Response: 200 OK -> {"data": {"status": "deleted"}}
+
+
+================================================================================
+7. FRONTEND ROUTES & USER INTERFACE
+================================================================================
+
+1. Marketing Home Page ('/')
+   - Brand logo and navigation.
+   - Clean hero headline and value proposition.
+   - Live interactive mockup preview.
+   - Call-to-action buttons directing to Login and Register.
+
+2. Authentication Pages ('/login', '/register')
+   - Client-side validation: email format, matching password confirmation, minimum 8 characters.
+   - Error toast feedback via Sonner on invalid credentials.
+   - Direct redirect to '/dashboard' upon successful login/registration.
+
+3. Main Dashboard ('/dashboard')
+   - Top Navigation:
+     * Logo and branding icon.
+     * User profile pill: dynamic gradient avatar with initials (e.g. "PA"), full user name, and email address.
+     * One-click logout button.
+   - Greeting & Date Header:
+     * Current weekday and date (e.g., "Tuesday, Oct 27").
+     * Personalized greeting ("Good morning, Jane 👋").
+     * "+ New Task" modal trigger button.
+   - Statistics Cards Grid:
+     * Total Tasks counter.
+     * Pending Tasks counter (with count of high-priority tasks).
+     * Completed Tasks counter.
+     * Completion Rate percentage with a real-time progress bar.
+   - Filter & Search Controls:
+     * Status Filter: All, Pending, Completed pills.
+     * Priority Dropdown: All Priorities, High, Medium, Low.
+     * Sort Dropdown: Newest First, Due Date (Earliest), Highest Priority, Title (A-Z).
+     * Real-time search input with clear (X) action.
+   - Task Card Items:
+     * Circular check button: toggles task completion instantly.
+     * Task title (strikethrough when completed).
+     * Optional task description.
+     * Color-coded priority badges:
+       - High: Soft red badge with flame icon.
+       - Medium: Soft amber badge.
+       - Low: Soft blue badge.
+     * Due date chip with calendar icon (displays highlighted red "Overdue" badge if pending past date).
+     * Action buttons: Edit task (opens edit modal), Delete task (with confirmation prompt).
+   - Create / Edit Task Modal:
+     * Responsive backdrop and modal dialog.
+     * Title input field (required).
+     * Description textarea (optional).
+     * Interactive 3-way priority buttons (Low, Medium, High).
+     * Native date picker input for due date.
+
+
+================================================================================
+8. SECURITY & DATA INTEGRITY
+================================================================================
+
+1. Authentication & Cookie Protection:
+   - Uses session tokens generated using 'crypto/rand' (32 cryptographically secure random bytes = 64 hex chars).
+   - Raw session tokens are never stored in the database. Only their SHA-256 hashes are persisted.
+   - Session cookies are issued with:
+     * 'HttpOnly': Prevents client-side JavaScript / XSS theft of session tokens.
+     * 'SameSite=Lax': Protects against Cross-Site Request Forgery (CSRF).
+     * 'Secure': Set to true in production HTTPS environments.
+
+2. Password Security:
+   - User passwords are automatically salted and hashed using bcrypt ('golang.org/x/crypto/bcrypt') with default cost.
+   - Plaintext passwords are never logged or stored.
+
+3. Strict Tenant / User Isolation:
+   - Every database query for reading, creating, updating, or deleting tasks is strictly scoped to the authenticated user's ID ('WHERE id=? AND user_id=?').
+   - Users cannot access, view, modify, or delete any task belonging to another user.
+
+4. SQL Injection Prevention:
+   - All database interactions use prepared statements / parameterized queries ('?', '?').
+   - No user-supplied data is concatenated into SQL query structures.
+
+5. Cross-Origin Resource Sharing (CORS):
+   - Configured for exact-origin matching ('http://localhost:3000' in development).
+   - Allows credentialed requests ('Access-Control-Allow-Credentials: true') for cookie transmission.
+   - Preflight 'OPTIONS' requests respond with 204 No Content.
+
+
+================================================================================
+9. ENVIRONMENT CONFIGURATION & SETUP INSTRUCTIONS
+================================================================================
+
+A. ENVIRONMENT VARIABLES:
+
+1. Backend ('.env' in 'backend/'):
+   -----------------------------------------------------------------------------
+   DATABASE_URL=root:password@tcp(localhost:3306)/taskflow?parseTime=true&charset=utf8mb4
+   PORT=8080
+   FRONTEND_ORIGIN=http://localhost:3000
+   COOKIE_SECURE=false
+   -----------------------------------------------------------------------------
+
+2. Frontend ('.env.local' in 'frontend/'):
+   -----------------------------------------------------------------------------
+   NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+   -----------------------------------------------------------------------------
+
+B. HOW TO RUN THE PROJECT:
+
+1. Ensure MySQL Server 8.0 is running locally on port 3306.
+2. Configure credentials in 'backend/.env'.
+3. Run Database Migrations:
+   From the 'backend/' directory:
+   $ go run ./cmd/migrate
+   (This creates the 'taskflow' database and runs all migration files in order).
+
+4. Start the Go Backend API:
+   From the 'backend/' directory:
+   $ go run ./cmd/api
+   (Server listens on port 8080).
+
+5. Start the Next.js Frontend:
+   From the 'frontend/' directory:
+   $ npm install
+   $ npm run dev
+   (Next.js starts on http://localhost:3000).
+
+6. Open your browser and navigate to:
+   http://localhost:3000
+================================================================================
+
