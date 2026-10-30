@@ -21,6 +21,7 @@ import (
 
 type contextKey string
 
+// from context
 const userKey contextKey = "user"
 
 func UserKeyForMiddleware() any { return userKey }
